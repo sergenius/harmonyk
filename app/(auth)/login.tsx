@@ -9,8 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Vibration,
+  Animated,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
 
@@ -20,6 +22,17 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [shakeAnimation] = useState(new Animated.Value(0));
+
+  const shakeForm = () => {
+    Vibration.vibrate(100);
+    Animated.sequence([
+      Animated.timing(shakeAnimation, { toValue: 10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: -10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 0, duration: 100, useNativeDriver: true }),
+    ]).start();
+  };
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -37,7 +50,13 @@ export default function LoginScreen() {
     }
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    if (Object.keys(newErrors).length > 0) {
+      shakeForm();
+      return false;
+    }
+    
+    return true;
   };
 
   const handleLogin = async () => {
@@ -54,14 +73,42 @@ export default function LoginScreen() {
 
       if (error) {
         console.error('Login error:', error);
-        Alert.alert('Login Error', error.message);
+        
+        // Provide more user-friendly error messages
+        let errorMessage = error.message;
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email and click the confirmation link before signing in.';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+        }
+        
+        Alert.alert('Login Error', errorMessage);
       } else {
         console.log('Login successful:', data.user?.email);
-        // The session will be automatically handled by the root layout
+        // Clear form on success
+        setEmail('');
+        setPassword('');
+        
+        // Show success message and redirect
+        Alert.alert(
+          'Welcome Back! 😊',
+          `Great to see you again! You\'re now signed in and ready to continue your balance tracking journey.`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                // Let the session management in _layout handle the redirect
+                // This will automatically redirect to the main app
+              }
+            }
+          ]
+        );
       }
     } catch (error) {
       console.error('Unexpected login error:', error);
-      Alert.alert('Login Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert('Login Error', 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -78,7 +125,7 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Sign in to continue your journey</Text>
         </View>
 
-        <View style={styles.form}>
+        <Animated.View style={[styles.form, { transform: [{ translateX: shakeAnimation }] }]}>
           <View style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
               <Mail size={20} color="#6B7280" style={styles.inputIcon} />
@@ -141,7 +188,7 @@ export default function LoginScreen() {
               <Text style={styles.linkText}>Forgot your password?</Text>
             </TouchableOpacity>
           </Link>
-        </View>
+        </Animated.View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don&apos;t have an account? </Text>

@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  Alert,
+  Animated,
+  RefreshControl,
+  Dimensions,
+  Vibration
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { 
   TrendingUp, 
@@ -13,8 +27,13 @@ import {
   AlertCircle,
   Plus,
   ArrowRight,
-  Database
+  Sparkles,
+  Zap,
+  Heart
 } from 'lucide-react-native';
+import { t } from '@/lib/i18n';
+
+const { width } = Dimensions.get('window');
 import { Database as DatabaseType } from '@/types/database';
 
 type Balance = DatabaseType['public']['Tables']['balances']['Row'] & {
@@ -44,179 +63,48 @@ export default function DashboardScreen() {
     recentBalances: [],
   });
   const [loading, setLoading] = useState(true);
-  const [testingConnection, setTestingConnection] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+
+  const navigateToCreate = () => {
+    // Add haptic feedback
+    Vibration.vibrate(50);
+    router.push('/(tabs)/create');
+  };
+
+  const navigateToHistory = () => {
+    // Add haptic feedback
+    Vibration.vibrate(50);
+    router.push('/(tabs)/history');
+  };
 
   useEffect(() => {
     loadDashboardData();
+    // Animate dashboard load
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      })
+    ]).start();
   }, []);
 
-  const testDatabaseConnection = async () => {
-    setTestingConnection(true);
-    try {
-      // Check environment variables
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-      
-      console.log('Environment check:');
-      console.log('SUPABASE_URL:', supabaseUrl ? 'Set' : 'Missing');
-      console.log('SUPABASE_KEY:', supabaseKey ? 'Set' : 'Missing');
-      
-      if (!supabaseUrl || !supabaseKey) {
-        Alert.alert('Configuration Error', 'Missing Supabase environment variables. Please check your .env file.');
-        return;
-      }
-      
-      // Test user authentication first
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error('Auth error:', authError);
-        Alert.alert('Auth Error', `Authentication error: ${authError.message}`);
-        return;
-      }
-      
-      if (!user) {
-        console.log('No authenticated user');
-        Alert.alert('Not Authenticated', 'Please sign up or log in to use the app.');
-        return;
-      }
-      
-      console.log('User authenticated:', user.email);
-      
-      // Test balance types query
-      const { data: balanceTypes, error: typesError } = await supabase
-        .from('balance_types')
-        .select('*')
-        .limit(5);
-      
-      if (typesError) {
-        console.error('Balance types error:', typesError);
-        Alert.alert('Database Error', `Failed to load balance types: ${typesError.message}\n\nThis might mean the database migration hasn't been run yet.`);
-        return;
-      }
-      
-      // Test balances table access
-      const { data: balances, error: balancesError } = await supabase
-        .from('balances')
-        .select('*')
-        .limit(1);
-      
-      if (balancesError) {
-        console.error('Balances table error:', balancesError);
-        Alert.alert('Database Error', `Failed to access balances table: ${balancesError.message}\n\nThis might mean the database migration hasn't been run yet.`);
-        return;
-      }
-      
-      console.log('Connection test successful');
-      Alert.alert(
-        'Connection Success', 
-        `Database connected successfully!\n\n` +
-        `User: ${user.email}\n` +
-        `Balance types: ${balanceTypes?.length || 0} found\n` +
-        `Balances table: Accessible\n` +
-        `RLS: Working properly`
-      );
-      
-    } catch (error) {
-      console.error('Test error:', error);
-      Alert.alert('Test Error', `Unexpected error: ${error}`);
-    } finally {
-      setTestingConnection(false);
-    }
-  };
 
-  const testCRUDOperations = async () => {
-    setTestingConnection(true);
-    try {
-      // Check authentication
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        Alert.alert('Auth Error', 'Please log in to test CRUD operations.');
-        return;
-      }
-      
-      console.log('Testing CRUD operations for user:', user.email);
-      
-      // Test CREATE operation
-      const testBalanceData = {
-        user_id: user.id,
-        balance_type_id: 1, // Assuming first balance type exists
-        belief_statement: 'Test belief statement for CRUD testing',
-        muscle_test_result: 'strong' as const,
-        stress_before: 5,
-        stress_after: 3,
-        outcome_notes: 'Test outcome notes',
-        session_status: 'completed' as const,
-        integration_status: 'complete' as const,
-      };
-      
-      console.log('Creating test balance...');
-      const { data: createdBalance, error: createError } = await supabase
-        .from('balances')
-        .insert(testBalanceData)
-        .select()
-        .single();
-      
-      if (createError) {
-        console.error('Create error:', createError);
-        Alert.alert('Create Test Failed', `Failed to create test balance: ${createError.message}`);
-        return;
-      }
-      
-      console.log('Test balance created:', createdBalance.id);
-      
-      // Test READ operation
-      console.log('Reading test balance...');
-      const { data: readBalance, error: readError } = await supabase
-        .from('balances')
-        .select('*')
-        .eq('id', createdBalance.id)
-        .single();
-      
-      if (readError) {
-        console.error('Read error:', readError);
-        Alert.alert('Read Test Failed', `Failed to read test balance: ${readError.message}`);
-        return;
-      }
-      
-      console.log('Test balance read successfully');
-      
-      // Test DELETE operation
-      console.log('Deleting test balance...');
-      const { error: deleteError } = await supabase
-        .from('balances')
-        .delete()
-        .eq('id', createdBalance.id);
-      
-      if (deleteError) {
-        console.error('Delete error:', deleteError);
-        Alert.alert('Delete Test Failed', `Failed to delete test balance: ${deleteError.message}`);
-        return;
-      }
-      
-      console.log('Test balance deleted successfully');
-      
-      Alert.alert(
-        'CRUD Test Success!',
-        'All CRUD operations (Create, Read, Delete) are working properly!\n\n' +
-        '✅ Create: Test balance created\n' +
-        '✅ Read: Test balance retrieved\n' +
-        '✅ Delete: Test balance removed\n\n' +
-        'Your database is fully functional!'
-      );
-      
-    } catch (error) {
-      console.error('CRUD test error:', error);
-      Alert.alert('CRUD Test Error', `Unexpected error: ${error}`);
-    } finally {
-      setTestingConnection(false);
-    }
-  };
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       
       // Load all balances with balance types
       const { data: balances, error } = await supabase
@@ -268,9 +156,24 @@ export default function DashboardScreen() {
       
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      if (!isRefresh) {
+        Alert.alert(
+          'Unable to Load Data 😟',
+          'We\'re having trouble loading your dashboard. Please check your internet connection and try again.',
+          [
+            { text: 'Retry', onPress: () => loadDashboardData() },
+            { text: 'OK', style: 'cancel' }
+          ]
+        );
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    loadDashboardData(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -341,10 +244,25 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading dashboard...</Text>
-        </View>
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          style={styles.loadingGradient}
+        >
+          <View style={styles.loadingContainer}>
+            <Animated.View 
+              style={{
+                transform: [{ rotate: fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '360deg']
+                })}]
+              }}
+            >
+              <Sparkles size={48} color="#FFFFFF" />
+            </Animated.View>
+            <Text style={styles.loadingText}>Loading your dashboard...</Text>
+            <Text style={styles.loadingSubtext}>Preparing your balance insights</Text>
+          </View>
+        </LinearGradient>
       </SafeAreaView>
     );
   }
@@ -357,34 +275,6 @@ export default function DashboardScreen() {
           <Text style={styles.subtitle}>Welcome to HarmonyK Balance Tracker</Text>
         </View>
 
-        {/* Test Connection Button */}
-        <View style={styles.testSection}>
-          <TouchableOpacity 
-            style={styles.testButton}
-            onPress={testDatabaseConnection}
-            disabled={testingConnection}
-          >
-            {testingConnection ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Database size={20} color="white" />
-            )}
-            <Text style={styles.testButtonText}>
-              {testingConnection ? 'Testing...' : 'Test Database Connection'}
-            </Text>
-          </TouchableOpacity>
-          
-          {/* Test CRUD Operations */}
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: '#10B981', marginTop: 12 }]}
-            onPress={testCRUDOperations}
-            disabled={testingConnection}
-          >
-            <Text style={styles.testButtonText}>
-              Test CRUD Operations
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Quick Stats */}
         <View style={styles.statsSection}>
@@ -452,7 +342,7 @@ export default function DashboardScreen() {
         <View style={styles.recentSection}>
           <View style={styles.recentHeader}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity style={styles.viewAllButton}>
+            <TouchableOpacity style={styles.viewAllButton} onPress={navigateToHistory}>
               <Text style={styles.viewAllText}>View All</Text>
               <ArrowRight size={16} color="#3B82F6" />
             </TouchableOpacity>
@@ -463,7 +353,7 @@ export default function DashboardScreen() {
               <Clock size={48} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No sessions yet</Text>
               <Text style={styles.emptyText}>Create your first balance session to get started</Text>
-              <TouchableOpacity style={styles.createButton}>
+              <TouchableOpacity style={styles.createButton} onPress={navigateToCreate}>
                 <Plus size={20} color="white" />
                 <Text style={styles.createButtonText}>Create Balance</Text>
               </TouchableOpacity>
@@ -481,12 +371,12 @@ export default function DashboardScreen() {
         <View style={styles.actionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={navigateToCreate}>
               <Plus size={24} color="#3B82F6" />
               <Text style={styles.actionButtonText}>New Balance</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity style={styles.actionButton} onPress={navigateToHistory}>
               <BarChart3 size={24} color="#10B981" />
               <Text style={styles.actionButtonText}>View History</Text>
             </TouchableOpacity>
@@ -502,58 +392,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+  loadingGradient: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    marginTop: 24,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  loadingSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   content: {
     flex: 1,
-    padding: 24,
+  },
+  headerGradient: {
+    paddingTop: 20,
+    paddingBottom: 40,
+    marginBottom: -20,
   },
   header: {
-    marginBottom: 32,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  headerContent: {
+    flex: 1,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748B',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
-  testSection: {
-    marginBottom: 24,
-  },
-  testButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  testButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  headerIcon: {
+    opacity: 0.8,
   },
   statsSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 16,
+    marginLeft: 8,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -565,14 +468,15 @@ const styles = StyleSheet.create({
     minWidth: '45%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  statCardGradient: {
+    padding: 16,
   },
   statIcon: {
     width: 48,
@@ -603,6 +507,7 @@ const styles = StyleSheet.create({
   },
   statusSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
   },
   statusCards: {
     flexDirection: 'row',
@@ -639,6 +544,7 @@ const styles = StyleSheet.create({
   },
   recentSection: {
     marginBottom: 32,
+    paddingHorizontal: 24,
   },
   recentHeader: {
     flexDirection: 'row',
@@ -756,6 +662,7 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     marginBottom: 24,
+    paddingHorizontal: 24,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -775,10 +682,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  primaryAction: {
+    borderWidth: 0,
+    overflow: 'hidden',
+  },
+  actionGradient: {
+    padding: 20,
+    alignItems: 'center',
+    width: '100%',
+  },
+  primaryActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 8,
+  },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
     marginTop: 8,
+  },
+  bottomPadding: {
+    height: 40,
   },
 });

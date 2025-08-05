@@ -10,7 +10,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react-native';
 
@@ -77,20 +77,64 @@ export default function SignupScreen() {
 
       if (error) {
         console.error('Signup error:', error);
-        Alert.alert('Signup Error', error.message);
+        
+        // Provide more user-friendly error messages
+        let errorMessage = error.message;
+        if (error.message.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists. Please try signing in instead.';
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = 'Password must be at least 6 characters long.';
+        } else if (error.message.includes('Unable to validate email')) {
+          errorMessage = 'Please enter a valid email address.';
+        }
+        
+        Alert.alert('Signup Error', errorMessage);
       } else if (data.user && !data.session) {
         console.log('Signup successful, email confirmation required');
+        // Clear form on success
+        setFullName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
         Alert.alert(
-          'Check Your Email',
-          'We sent you a confirmation email. Please check your inbox and click the link to verify your account.'
+          'Account Created Successfully! 🎉',
+          `We sent a confirmation email to ${email}. Please check your inbox and click the link to verify your account.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Redirect to login after successful signup
+                router.replace('/(auth)/login');
+              }
+            }
+          ]
         );
       } else if (data.session) {
         console.log('Signup successful, user logged in automatically');
-        Alert.alert('Account Created', 'Your account has been created successfully!');
+        // Clear form on success
+        setFullName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        Alert.alert(
+          'Welcome to HarmonyK! 🎉',
+          'Your account has been created and you are now signed in. Let\'s get started!',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                // Let the session management in _layout handle the redirect
+                // This will automatically redirect to the appropriate screen
+              }
+            }
+          ]
+        );
       }
     } catch (error) {
       console.error('Unexpected signup error:', error);
-      Alert.alert('Signup Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert('Signup Error', 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
