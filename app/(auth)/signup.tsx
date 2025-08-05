@@ -62,25 +62,38 @@ export default function SignupScreen() {
     if (!validateForm()) return;
     
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-      options: {
-        data: {
-          full_name: fullName.trim(),
+    console.log('Attempting signup with email:', email);
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      Alert.alert('Signup Error', error.message);
-    } else if (data.user && !data.session) {
-      Alert.alert(
-        'Check Your Email',
-        'We sent you a confirmation email. Please check your inbox and click the link to verify your account.'
-      );
+      if (error) {
+        console.error('Signup error:', error);
+        Alert.alert('Signup Error', error.message);
+      } else if (data.user && !data.session) {
+        console.log('Signup successful, email confirmation required');
+        Alert.alert(
+          'Check Your Email',
+          'We sent you a confirmation email. Please check your inbox and click the link to verify your account.'
+        );
+      } else if (data.session) {
+        console.log('Signup successful, user logged in automatically');
+        Alert.alert('Account Created', 'Your account has been created successfully!');
+      }
+    } catch (error) {
+      console.error('Unexpected signup error:', error);
+      Alert.alert('Signup Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

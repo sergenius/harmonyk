@@ -44,15 +44,27 @@ export default function LoginScreen() {
     if (!validateForm()) return;
     
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
+    console.log('Attempting login with email:', email);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-    if (error) {
-      Alert.alert('Login Error', error.message);
+      if (error) {
+        console.error('Login error:', error);
+        Alert.alert('Login Error', error.message);
+      } else {
+        console.log('Login successful:', data.user?.email);
+        // The session will be automatically handled by the root layout
+      }
+    } catch (error) {
+      console.error('Unexpected login error:', error);
+      Alert.alert('Login Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -132,7 +144,7 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={styles.footerText}>Don&apos;t have an account? </Text>
           <Link href="/(auth)/signup" asChild>
             <TouchableOpacity>
               <Text style={styles.linkText}>Sign Up</Text>

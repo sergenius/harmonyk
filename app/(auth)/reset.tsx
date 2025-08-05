@@ -56,7 +56,7 @@ export default function ResetPasswordScreen() {
           </View>
           <Text style={styles.successTitle}>Check Your Email</Text>
           <Text style={styles.successMessage}>
-            We've sent a password reset link to {email}. Please check your inbox and follow the instructions.
+            We&apos;ve sent a password reset link to {email}. Please check your inbox and follow the instructions.
           </Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backButtonText}>Back to Login</Text>
@@ -79,7 +79,7 @@ export default function ResetPasswordScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we&apos;ll send you a link to reset your password
           </Text>
         </View>
 
