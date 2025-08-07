@@ -99,12 +99,12 @@ export default function OnboardingScreen() {
 
   const handleSkip = async () => {
     await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-    router.push('/(auth)/signup');
+    router.replace('/(auth)/signup');
   };
 
   const handleComplete = async () => {
     await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-    router.push('/(auth)/signup');
+    router.replace('/(auth)/signup');
   };
 
   const handleScroll = (event: any) => {

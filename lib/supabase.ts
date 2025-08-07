@@ -22,12 +22,27 @@ const finalKey = supabaseAnonKey || fallbackKey;
 console.log('Using Supabase URL:', finalUrl);
 console.log('Using Supabase Key:', finalKey ? 'Set' : 'Missing');
 
+if (!finalUrl || !finalKey) {
+  console.error('❌ Supabase configuration is missing!');
+  console.error('Please check your environment variables.');
+}
+
 export const supabase = createClient<Database>(finalUrl, finalKey, {
   auth: {
     storage: AsyncStorage,
     persistSession: true,
     autoRefreshToken: true,
   },
+});
+
+// Test the connection
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('❌ Supabase connection error:', error);
+  } else {
+    console.log('✅ Supabase connection successful');
+    console.log('Session status:', data.session ? 'Authenticated' : 'Not authenticated');
+  }
 });
 
 // Handle app state changes for auth refresh

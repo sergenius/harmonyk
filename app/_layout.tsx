@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -13,6 +13,7 @@ export default function RootLayout() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSeenLanding, setHasSeenLanding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -33,7 +34,28 @@ export default function RootLayout() {
       
       // Listen for auth changes
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        console.log('Auth state changed:', _event, session ? 'session exists' : 'no session');
         setSession(session);
+        
+        // Handle navigation based on auth state (only if not already navigating)
+        if (!isNavigating) {
+          setIsNavigating(true);
+          if (session) {
+            console.log('User authenticated, redirecting to main app');
+            router.replace('/(tabs)');
+          } else {
+            console.log('User not authenticated, checking onboarding status');
+            if (hasSeenLanding && hasCompletedOnboarding) {
+              router.replace('/(auth)/login');
+            } else if (hasSeenLanding && !hasCompletedOnboarding) {
+              router.replace('/onboarding');
+            } else {
+              router.replace('/landing');
+            }
+          }
+          // Reset navigation flag after a short delay
+          setTimeout(() => setIsNavigating(false), 1000);
+        }
       });
 
       setIsLoading(false);

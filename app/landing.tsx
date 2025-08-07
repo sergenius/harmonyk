@@ -77,16 +77,16 @@ export default function LandingScreen() {
 
   const handleGetStarted = async () => {
     await AsyncStorage.setItem('hasSeenLanding', 'true');
-    router.push('/(auth)/signup');
+    router.replace('/(auth)/signup');
   };
 
   const handleSignIn = () => {
-    router.push('/(auth)/login');
+    router.replace('/(auth)/login');
   };
 
   const handleStartOnboarding = async () => {
     await AsyncStorage.setItem('hasSeenLanding', 'true');
-    router.push('/onboarding');
+    router.replace('/onboarding');
   };
 
   return (

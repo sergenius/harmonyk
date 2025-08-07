@@ -62,7 +62,7 @@ export default function SignupScreen() {
     if (!validateForm()) return;
     
     setLoading(true);
-    console.log('Attempting signup with email:', email);
+    console.log('🔐 Attempting signup with email:', email);
     
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -75,8 +75,14 @@ export default function SignupScreen() {
         },
       });
 
+      console.log('📡 Signup response:', { 
+        user: data.user ? 'exists' : 'none', 
+        session: data.session ? 'exists' : 'none', 
+        error: error ? error.message : 'none' 
+      });
+
       if (error) {
-        console.error('Signup error:', error);
+        console.error('❌ Signup error:', error);
         
         // Provide more user-friendly error messages
         let errorMessage = error.message;
@@ -90,7 +96,7 @@ export default function SignupScreen() {
         
         Alert.alert('Signup Error', errorMessage);
       } else if (data.user && !data.session) {
-        console.log('Signup successful, email confirmation required');
+        console.log('✅ Signup successful, email confirmation required');
         // Clear form on success
         setFullName('');
         setEmail('');
@@ -111,29 +117,19 @@ export default function SignupScreen() {
           ]
         );
       } else if (data.session) {
-        console.log('Signup successful, user logged in automatically');
+        console.log('✅ Signup successful, user logged in automatically');
+        console.log('🔄 Session created:', !!data.session);
         // Clear form on success
         setFullName('');
         setEmail('');
         setPassword('');
         setConfirmPassword('');
         
-        Alert.alert(
-          'Welcome to HarmonyK! 🎉',
-          'Your account has been created and you are now signed in. Let\'s get started!',
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                // Let the session management in _layout handle the redirect
-                // This will automatically redirect to the appropriate screen
-              }
-            }
-          ]
-        );
+        // Don't show alert - let the auth state change listener handle navigation
+        // The session will be automatically detected and user will be redirected
       }
     } catch (error) {
-      console.error('Unexpected signup error:', error);
+      console.error('💥 Unexpected signup error:', error);
       Alert.alert('Signup Error', 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -253,6 +249,22 @@ export default function SignupScreen() {
             <Text style={styles.signupButtonText}>
               {loading ? 'Creating Account...' : 'Create Account'}
             </Text>
+          </TouchableOpacity>
+
+          {/* Debug button for testing */}
+          <TouchableOpacity
+            style={[styles.signupButton, { backgroundColor: '#8B5CF6', marginTop: 8 }]}
+            onPress={async () => {
+              console.log('🔍 Debug: Checking current session...');
+              const { data, error } = await supabase.auth.getSession();
+              console.log('🔍 Debug: Session check result:', { 
+                session: data.session ? 'exists' : 'none', 
+                error: error ? error.message : 'none' 
+              });
+              Alert.alert('Debug Info', `Session: ${data.session ? 'Exists' : 'None'}\nError: ${error ? error.message : 'None'}`);
+            }}
+          >
+            <Text style={styles.signupButtonText}>Debug Session</Text>
           </TouchableOpacity>
         </View>
 

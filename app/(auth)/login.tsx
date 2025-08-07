@@ -63,7 +63,7 @@ export default function LoginScreen() {
     if (!validateForm()) return;
     
     setLoading(true);
-    console.log('Attempting login with email:', email);
+    console.log('🔐 Attempting login with email:', email);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -71,8 +71,14 @@ export default function LoginScreen() {
         password,
       });
 
+      console.log('📡 Login response:', { 
+        user: data.user ? 'exists' : 'none', 
+        session: data.session ? 'exists' : 'none', 
+        error: error ? error.message : 'none' 
+      });
+
       if (error) {
-        console.error('Login error:', error);
+        console.error('❌ Login error:', error);
         
         // Provide more user-friendly error messages
         let errorMessage = error.message;
@@ -86,28 +92,17 @@ export default function LoginScreen() {
         
         Alert.alert('Login Error', errorMessage);
       } else {
-        console.log('Login successful:', data.user?.email);
+        console.log('✅ Login successful:', data.user?.email);
+        console.log('🔄 Session created:', !!data.session);
         // Clear form on success
         setEmail('');
         setPassword('');
         
-        // Show success message and redirect
-        Alert.alert(
-          'Welcome Back! 😊',
-          `Great to see you again! You\'re now signed in and ready to continue your balance tracking journey.`,
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                // Let the session management in _layout handle the redirect
-                // This will automatically redirect to the main app
-              }
-            }
-          ]
-        );
+        // Don't show alert - let the auth state change listener handle navigation
+        // The session will be automatically detected and user will be redirected
       }
     } catch (error) {
-      console.error('Unexpected login error:', error);
+      console.error('💥 Unexpected login error:', error);
       Alert.alert('Login Error', 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -181,6 +176,22 @@ export default function LoginScreen() {
             <Text style={styles.loginButtonText}>
               {loading ? 'Signing In...' : 'Sign In'}
             </Text>
+          </TouchableOpacity>
+
+          {/* Debug button for testing */}
+          <TouchableOpacity
+            style={[styles.loginButton, { backgroundColor: '#8B5CF6', marginTop: 8 }]}
+            onPress={async () => {
+              console.log('🔍 Debug: Checking current session...');
+              const { data, error } = await supabase.auth.getSession();
+              console.log('🔍 Debug: Session check result:', { 
+                session: data.session ? 'exists' : 'none', 
+                error: error ? error.message : 'none' 
+              });
+              Alert.alert('Debug Info', `Session: ${data.session ? 'Exists' : 'None'}\nError: ${error ? error.message : 'None'}`);
+            }}
+          >
+            <Text style={styles.loginButtonText}>Debug Session</Text>
           </TouchableOpacity>
 
           <Link href="/(auth)/reset" asChild>
